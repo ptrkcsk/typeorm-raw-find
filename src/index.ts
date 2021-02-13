@@ -1,21 +1,47 @@
-import "reflect-metadata";
-import {createConnection} from "typeorm";
-import {User} from "./entity/User";
+import 'reflect-metadata'
+import { createConnection, getRepository, Raw } from 'typeorm'
+import { User } from './entity/User'
 
 createConnection().then(async connection => {
+    const repository = getRepository(User)
+    const firstName = 'Timber'
 
-    console.log("Inserting a new user into the database...");
-    const user = new User();
-    user.firstName = "Timber";
-    user.lastName = "Saw";
-    user.age = 25;
-    await connection.manager.save(user);
-    console.log("Saved a new user with id: " + user.id);
+    let user = await repository.findOne({ where: { firstName } })
 
-    console.log("Loading users from the database...");
-    const users = await connection.manager.find(User);
-    console.log("Loaded users: ", users);
+    if (!user) {
+        const newUser = new User()
+        newUser.firstName = 'Timber'
+        newUser.lastName = 'Saw'
+        newUser.age = 25
 
-    console.log("Here you can setup and run express/koa/any other framework.");
+        console.log('Inserting a new user into the database...')
+        await connection.manager.save(newUser)
+        console.log('Saved a new user with id: ' + newUser.id)
+    } else {
+        console.log(`Found existing user with id: ${user.id}`)
+    }
 
-}).catch(error => console.log(error));
+    console.log('Querying user by name with unquoted parameter...')
+
+    user = await repository.findOne({
+        firstName: Raw(
+          alias => `${alias} = :firstName`, // No quotes
+          { firstName }
+        )
+    })
+
+    console.log(
+      `Successfully found user by name with unquoted parameter. User id: ${user.id}`)
+
+    console.log('Querying user by name with quoted parameter...')
+
+    user = await repository.findOne({
+        firstName: Raw(
+          alias => `${alias} = ':firstName'`, // Quotes
+          { firstName }
+        )
+    })
+
+    console.log(
+      `Successfully found user by name with quoted parameter. User id: ${user.id}`)
+}).catch(error => console.log(error))
